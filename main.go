@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -44,9 +45,20 @@ func main() {
 
 	state := newAppState(Config{FolderPath: folder, Secret: secret})
 
+	cert, err := loadOrCreateTLSCertificate()
+	if err != nil {
+		log.Fatalf("TLS 인증서 준비 실패: %v", err)
+	}
+
 	go func() {
 		handler := newServer(state)
-		if err := http.ListenAndServe(fmt.Sprintf(":%d", port), handler); err != nil {
+		server := &http.Server{
+			Addr:      fmt.Sprintf(":%d", port),
+			Handler:   handler,
+			TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}},
+		}
+		// 인증서/키는 위 TLSConfig에 이미 들어있어서 파일 경로 인자는 안 씀.
+		if err := server.ListenAndServeTLS("", ""); err != nil {
 			log.Printf("서버 시작 실패(포트 %d 사용 중일 수 있음): %v", port, err)
 			if !*headless {
 				showMessage("moonkata-sync-server", fmt.Sprintf("서버를 시작하지 못했습니다 — 포트 %d를 다른 프로그램이 쓰고 있는지 확인하세요.", port))

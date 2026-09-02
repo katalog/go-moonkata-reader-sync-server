@@ -17,13 +17,21 @@ type Config struct {
 	Secret     string `json:"secret"`
 }
 
-func configPath() (string, error) {
+func configDir() (string, error) {
 	appData := os.Getenv("APPDATA")
 	if appData == "" {
 		return "", os.ErrNotExist
 	}
 	dir := filepath.Join(appData, "MoonkataSyncServer")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+func configPath() (string, error) {
+	dir, err := configDir()
+	if err != nil {
 		return "", err
 	}
 	return filepath.Join(dir, "config.json"), nil
