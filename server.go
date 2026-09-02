@@ -17,9 +17,9 @@ type pingResponse struct {
 }
 
 // newServer는 .docs/PC_SYNC_SERVER_PLAN.md §2의 세 엔드포인트를 등록한 http.Handler를 만든다.
-// folderPath/secret은 클로저로 캡처 — 트레이 앱(Phase P2)에서 설정이 바뀌면 이 함수를 다시 호출해서
-// 새 핸들러로 갈아끼우면 된다(서버 재시작 없이 리로드하는 것도 나중에 고려 가능, 지금은 범위 밖).
-func newServer(folderPath string, secret string) http.Handler {
+// 폴더/시크릿은 고정값이 아니라 [AppState]에서 매 요청마다 읽는다 — 트레이 메뉴로 설정을 바꿔도
+// HTTP 리스너를 재시작할 필요가 없다.
+func newServer(state *AppState) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -28,6 +28,7 @@ func newServer(folderPath string, secret string) http.Handler {
 	})
 
 	mux.HandleFunc("/list", func(w http.ResponseWriter, r *http.Request) {
+		folderPath, secret := state.Get()
 		if !checkSecret(w, r, secret) {
 			return
 		}
@@ -42,6 +43,7 @@ func newServer(folderPath string, secret string) http.Handler {
 	})
 
 	mux.HandleFunc("/file", func(w http.ResponseWriter, r *http.Request) {
+		folderPath, secret := state.Get()
 		if !checkSecret(w, r, secret) {
 			return
 		}

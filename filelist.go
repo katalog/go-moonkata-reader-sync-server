@@ -9,9 +9,9 @@ import (
 // RemoteFile은 안드로이드 앱의 SmbRemoteFile/PcSyncRemoteFile과 같은 모양(relativePath/sizeBytes/
 // lastModifiedMillis)으로 맞춘다 — .docs/PC_SYNC_SERVER_PLAN.md §2.
 type RemoteFile struct {
-	RelativePath      string `json:"relativePath"`
-	SizeBytes         int64  `json:"sizeBytes"`
-	LastModifiedMillis int64 `json:"lastModifiedMillis"`
+	RelativePath       string `json:"relativePath"`
+	SizeBytes          int64  `json:"sizeBytes"`
+	LastModifiedMillis int64  `json:"lastModifiedMillis"`
 }
 
 // listFilesRecursively는 root 아래를 재귀적으로 순회해서 .txt/.zip 파일만 나열한다 —
