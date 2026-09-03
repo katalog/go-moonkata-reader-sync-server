@@ -9,7 +9,7 @@ import (
 )
 
 const appName = "moonkata-sync-server"
-const appVersion = "1.5.0-beta.3"
+const appVersion = "1.5.0-beta.5"
 
 type pingResponse struct {
 	App     string `json:"app"`

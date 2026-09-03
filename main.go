@@ -76,7 +76,7 @@ func main() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
 			log.Printf("서버 시작 실패(포트 %d 사용 중일 수 있음): %v", port, err)
 			if !*headless {
-				showMessage("moonkata-sync-server", fmt.Sprintf("서버를 시작하지 못했습니다 — 포트 %d를 다른 프로그램이 쓰고 있는지 확인하세요.", port))
+				showNotification("moonkata-sync-server", fmt.Sprintf("서버를 시작하지 못했습니다 — 포트 %d를 다른 프로그램이 쓰고 있는지 확인하세요.", port))
 			}
 		}
 	}()
