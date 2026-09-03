@@ -29,6 +29,7 @@ func onTrayReady(state *AppState) {
 
 	systray.AddSeparator()
 	mFolder := systray.AddMenuItem("공유 폴더 변경...", "동기화할 폴더를 다시 선택합니다")
+	mPairingQr := systray.AddMenuItem("동기화 QR 보기", "안드로이드 앱으로 스캔해서 바로 연결합니다")
 	mCopySecret := systray.AddMenuItem("공유 시크릿 복사", "안드로이드 앱에 붙여넣을 시크릿을 클립보드로 복사합니다")
 	mRegenSecret := systray.AddMenuItem("공유 시크릿 재생성", "기존 시크릿을 무효화하고 새로 만듭니다")
 	mAutoStart := systray.AddMenuItemCheckbox("Windows 시작 시 자동 실행", "로그인할 때 자동으로 실행합니다", isAutoStartEnabled())
@@ -44,6 +45,8 @@ func onTrayReady(state *AppState) {
 			select {
 			case <-mFolder.ClickedCh:
 				handleChangeFolder(state, mStatus)
+			case <-mPairingQr.ClickedCh:
+				handleShowPairingQr()
 			case <-mCopySecret.ClickedCh:
 				handleCopySecret(state)
 			case <-mRegenSecret.ClickedCh:
@@ -84,6 +87,20 @@ func handleChangeFolder(state *AppState, mStatus *systray.MenuItem) {
 	updateStatusLabel(mStatus, state)
 	updateTooltip(state)
 	showMessage("moonkata-sync-server", "공유 폴더를 변경했습니다:\n"+selected)
+}
+
+// handleShowPairingQr는 기본 브라우저로 /pair 페이지를 연다 — 이 서버가 자체 서명 인증서를 쓰기
+// 때문에(TOFU, tls.go 참고) 브라우저가 처음엔 "안전하지 않은 연결" 경고를 보여준다. 이건 이 서버가
+// 쓰는 인증서 방식 자체의 성격이라 이 화면만 따로 없앨 방법은 없어서, 사용자에게 왜 그런지 미리
+// 알려주고 진행하게 한다(.docs/SYNC_MULTIUSER_PLAN.md 스테이지 6).
+func handleShowPairingQr() {
+	showMessage(
+		"moonkata-sync-server",
+		"브라우저가 열립니다. 이 서버는 자체 서명 인증서를 쓰기 때문에 \"안전하지 않은 연결\" 경고가 뜰 수 있습니다 — \"고급\" → \"계속 진행\"을 누르면 QR이 보입니다(처음 한 번만).",
+	)
+	if err := openURL(fmt.Sprintf("https://127.0.0.1:%d/pair", port)); err != nil {
+		showMessage("moonkata-sync-server", "브라우저를 여는 데 실패했습니다.")
+	}
 }
 
 func handleCopySecret(state *AppState) {

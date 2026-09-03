@@ -4,13 +4,17 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -92,4 +96,20 @@ func generateSelfSignedCertificate(certPath string, keyPath string) (tls.Certifi
 	keyOut.Close()
 
 	return tls.LoadX509KeyPair(certPath, keyPath)
+}
+
+// certificateFingerprint는 리프 인증서의 SHA-256 지문을 안드로이드 쪽 PcTlsTrust.sha256Fingerprint와
+// 정확히 같은 형식(콜론 구분 대문자 헥사 32쌍)으로 계산한다 — QR 페어링(.docs/SYNC_MULTIUSER_PLAN.md
+// 스테이지 6)이 이 값을 그대로 QR에 실어 보내고, 안드로이드는 문자열을 그대로 비교하므로 형식이 한
+// 글자라도 다르면 pinned TLS 연결이 실패한다.
+func certificateFingerprint(cert tls.Certificate) (string, error) {
+	if len(cert.Certificate) == 0 {
+		return "", errors.New("인증서가 비어있습니다")
+	}
+	sum := sha256.Sum256(cert.Certificate[0])
+	parts := make([]string, len(sum))
+	for i, b := range sum {
+		parts[i] = fmt.Sprintf("%02X", b)
+	}
+	return strings.Join(parts, ":"), nil
 }

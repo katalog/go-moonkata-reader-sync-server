@@ -54,3 +54,13 @@ func copyToClipboard(text string) error {
 	cmd.Stdin = strings.NewReader(text)
 	return cmd.Run()
 }
+
+// openURL은 기본 브라우저로 주소를 연다 — "동기화 QR 보기" 메뉴용(.docs/SYNC_MULTIUSER_PLAN.md
+// 스테이지 6). `cmd /c start`는 Windows에 항상 있는 내장 명령이라 별도 라이브러리가 필요 없다. 첫
+// 인자는 start가 창 제목으로 해석하므로 빈 문자열을 그 자리에 넣어야 URL이 두 번째 인자로 정확히
+// 전달된다.
+func openURL(url string) error {
+	cmd := exec.Command("cmd", "/c", "start", "", url)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Run()
+}

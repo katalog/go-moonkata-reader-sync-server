@@ -49,9 +49,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("TLS 인증서 준비 실패: %v", err)
 	}
+	certFingerprint, err := certificateFingerprint(cert)
+	if err != nil {
+		log.Fatalf("인증서 지문 계산 실패: %v", err)
+	}
 
 	go func() {
-		handler := newServer(state)
+		handler := newServer(state, certFingerprint)
 		server := &http.Server{
 			Addr:      fmt.Sprintf(":%d", port),
 			Handler:   handler,
