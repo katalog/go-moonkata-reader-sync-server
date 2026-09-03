@@ -61,16 +61,21 @@ func onTrayReady(state *AppState) {
 	}()
 }
 
+// 실행될 때마다 상태를 알려준다 — 예전엔 showMessage(모달, OK를 눌러야 다음으로 넘어감)였는데, 그냥
+// 확인용 정보라 클릭을 강제할 이유가 없다는 실사용 피드백을 받고 showNotification(우측 하단 알림)으로
+// 바꿨다. 안내 문구도 QR 페어링(스테이지 6)이 생긴 뒤로는 시크릿을 통째로 안 보여줘도 되므로 줄였다 —
+// 시크릿은 여전히 클립보드에 복사해두고, 자세한 값이 필요하면 "공유 시크릿 복사" 메뉴로 언제든 다시
+// 가져갈 수 있다.
 func showStartupSecret(state *AppState) {
 	folderPath, secret := state.Get()
 	if folderPath == "" {
-		showMessage("moonkata-sync-server", "공유할 폴더가 아직 설정되지 않았습니다.\n트레이 아이콘 메뉴에서 \"공유 폴더 변경...\"을 눌러 설정하세요.")
+		showNotification("moonkata-sync-server", "공유할 폴더가 아직 설정되지 않았습니다 — 트레이 메뉴에서 \"공유 폴더 변경...\"을 선택하세요.")
 		return
 	}
 	_ = copyToClipboard(secret)
-	showMessage(
+	showNotification(
 		"moonkata-sync-server 실행 중",
-		fmt.Sprintf("포트 %d에서 대기 중입니다.\n\n공유 폴더: %s\n\n공유 시크릿(클립보드에 복사됨):\n%s\n\n안드로이드 앱의 \"공유 시크릿\" 칸에 붙여넣으세요.", port, folderPath, secret),
+		fmt.Sprintf("포트 %d에서 대기 중입니다. 트레이 메뉴의 \"동기화 QR 보기\"로 안드로이드와 연결하세요(시크릿은 클립보드에 복사됨).", port),
 	)
 }
 

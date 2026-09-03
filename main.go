@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 // .docs/PC_SYNC_SERVER_PLAN.md 참고. 기본은 트레이 앱(Phase P2)으로 뜨고, -headless를 주면 Phase P1
@@ -13,6 +14,16 @@ import (
 const port = 58221
 
 func main() {
+	// 무엇보다 먼저 확인한다 — 이미 실행 중이면 설정을 다시 읽거나 포트를 새로 열려고 시도할 이유가
+	// 없다(실사용 피드백으로 추가: 중복 실행 시 트레이 아이콘이 두 개 뜨는 등 혼란스러웠음). 실제
+	// 포트 바인딩 실패는 이미 처리돼 있지만(아래 ListenAndServeTLS 에러 처리), 그건 서버만 못 뜰 뿐
+	// 트레이 UI는 그대로 중복으로 떠버리는 문제라 이걸로는 안 막아진다.
+	if !acquireSingleInstanceLock() {
+		showNotification("moonkata-sync-server", "이미 실행 중입니다 — 트레이 아이콘을 확인하세요.")
+		log.Println("이미 실행 중인 인스턴스가 있어 종료합니다")
+		os.Exit(1)
+	}
+
 	folderFlag := flag.String("folder", "", "공유할 폴더 경로 (지정하면 설정 파일보다 우선)")
 	secretFlag := flag.String("secret", "", "공유 시크릿 (지정하면 설정 파일보다 우선)")
 	headless := flag.Bool("headless", false, "트레이 아이콘 없이 콘솔에서만 실행(테스트용)")
