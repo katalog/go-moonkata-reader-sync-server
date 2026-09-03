@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -34,9 +33,12 @@ func handlePair(w http.ResponseWriter, r *http.Request, state *AppState, fingerp
 		return
 	}
 
+	// Host는 포트 없이 IP만 담는다 — 안드로이드의 PcSyncClient가 이미 고정 포트(PC_SYNC_PORT)를
+	// 스스로 붙이는 구조라(호스트 입력칸에 IP만 받게 설계돼 있음), 여기서 포트까지 같이 보내면
+	// "IP:포트:포트"로 겹쳐서 MalformedURLException이 난다 — 실사용 중 실제로 겪은 버그.
 	payload := pairPayload{
 		Type:        "pc_sync",
-		Host:        fmt.Sprintf("%s:%d", host, port),
+		Host:        host,
 		Secret:      secret,
 		Fingerprint: fingerprint,
 	}
