@@ -6,8 +6,8 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// Windows 시작 시 자동 실행 — 관리자 권한이 필요 없는 사용자별 시작프로그램 레지스트리 키만 쓴다
-// (HKCU\...\Run, 로그인한 사용자 계정에만 적용).
+// Auto-launch at Windows startup — uses only the per-user startup registry key, which needs no
+// administrator privileges (HKCU\...\Run, applies only to the logged-in user account).
 const runKeyPath = `Software\Microsoft\Windows\CurrentVersion\Run`
 const runValueName = "MoonkataSyncServer"
 

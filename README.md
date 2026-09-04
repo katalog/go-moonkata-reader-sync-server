@@ -1,14 +1,12 @@
 # moonkata-sync-server
 
-**[English](README.md) | [한국어](README.ko.md)**
-
 A small Windows tray app (plain Go, no framework) that shares a folder over HTTPS on your LAN so the [android-moonkata-reader](https://github.com/katalog/android-moonkata-reader) app can pull book files from your PC — no cloud storage, no account. Part of the [moonkata-reader-project](https://github.com/katalog/moonkata-reader-project) umbrella.
 
 ## What it does
 
 - Shares one folder you pick, over HTTPS, authenticated by a secret it generates on first run
 - The Android app mirrors that folder into its library one-way (PC → phone) with a "Sync now" button
-- Pairing is one QR scan away — the tray menu's "동기화 QR 보기" opens a local page with a QR containing host + secret + TLS fingerprint in one shot, or you can copy/paste the secret manually
+- Pairing is one QR scan away — the tray menu's "Show sync QR code" opens a local page with a QR containing host + secret + TLS fingerprint in one shot, or you can copy/paste the secret manually
 - The self-signed TLS certificate is trust-pinned SSH-style (trust-on-first-use) rather than CA-verified, since private LAN IPs can't get a real certificate
 - All tray notifications are non-blocking Windows toasts — the server never sits waiting on a modal dialog
 - Single-instance guarded (a named Windows mutex) so launching the exe twice doesn't spin up two competing servers

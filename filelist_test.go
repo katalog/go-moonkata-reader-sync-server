@@ -48,8 +48,8 @@ func TestResolveFilePath_AcceptsValidRelativePaths(t *testing.T) {
 func TestResolveFilePath_RejectsTheRootItself(t *testing.T) {
 	root := t.TempDir()
 
-	// "." (요청 경로가 비어있거나 정리 후 루트 자체를 가리키는 경우) — 파일 하나를 내려받는 엔드포인트라
-	// 루트 폴더 자체를 대상으로 하는 요청은 유효하지 않다.
+	// "." (the requested path is empty, or points to the root itself after cleaning) — since this
+	// is an endpoint for downloading a single file, a request targeting the root folder itself is not valid.
 	if _, ok := resolveFilePath(root, "."); ok {
 		t.Error("resolveFilePath(root, \".\") should be rejected")
 	}

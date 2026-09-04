@@ -16,11 +16,11 @@ type pingResponse struct {
 	Version string `json:"version"`
 }
 
-// newServer는 .docs/PC_SYNC_SERVER_PLAN.md §2의 세 엔드포인트 + QR 페어링용 /pair
-// (.docs/SYNC_MULTIUSER_PLAN.md 스테이지 6)를 등록한 http.Handler를 만든다. 폴더/시크릿은 고정값이
-// 아니라 [AppState]에서 매 요청마다 읽는다 — 트레이 메뉴로 설정을 바꿔도 HTTP 리스너를 재시작할
-// 필요가 없다. certFingerprint는 시작할 때 로드한 인증서에서 한 번만 계산해 넘긴다(재실행 전까지
-// 안 바뀌므로).
+// newServer builds an http.Handler with the three endpoints from .docs/PC_SYNC_SERVER_PLAN.md §2
+// plus /pair for QR pairing (.docs/SYNC_MULTIUSER_PLAN.md stage 6) registered. The folder/secret
+// aren't fixed values — they're read from [AppState] on every request, so changing settings from
+// the tray menu never requires restarting the HTTP listener. certFingerprint is computed once from
+// the certificate loaded at startup and passed in (it doesn't change until the next restart).
 func newServer(state *AppState, certFingerprint string) http.Handler {
 	mux := http.NewServeMux()
 

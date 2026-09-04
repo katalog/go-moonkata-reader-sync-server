@@ -11,9 +11,10 @@ import (
 //go:embed icon.ico
 var trayIcon []byte
 
-// runTray는 프로그램의 메인 루프 — systray.Run이 블록되므로 HTTP 서버는 이미 별도 goroutine으로
-// 떠 있어야 한다(main.go 참고). 메뉴 구성은 .docs/PC_SYNC_SERVER_PLAN.md §1 "PC 트레이 앱" 그대로:
-// 폴더 변경, 시크릿 복사/재생성, 자동 실행 체크박스, 종료.
+// runTray is the program's main loop — systray.Run blocks, so the HTTP server must already be
+// running on its own goroutine by this point (see main.go). The menu layout follows
+// .docs/PC_SYNC_SERVER_PLAN.md §1 "PC tray app" as-is: change folder, copy/regenerate secret,
+// auto-start checkbox, quit.
 func runTray(state *AppState) {
 	systray.Run(func() { onTrayReady(state) }, func() {})
 }
@@ -28,16 +29,17 @@ func onTrayReady(state *AppState) {
 	updateStatusLabel(mStatus, state)
 
 	systray.AddSeparator()
-	mFolder := systray.AddMenuItem("공유 폴더 변경...", "동기화할 폴더를 다시 선택합니다")
-	mPairingQr := systray.AddMenuItem("동기화 QR 보기", "안드로이드 앱으로 스캔해서 바로 연결합니다")
-	mCopySecret := systray.AddMenuItem("공유 시크릿 복사", "안드로이드 앱에 붙여넣을 시크릿을 클립보드로 복사합니다")
-	mRegenSecret := systray.AddMenuItem("공유 시크릿 재생성", "기존 시크릿을 무효화하고 새로 만듭니다")
-	mAutoStart := systray.AddMenuItemCheckbox("Windows 시작 시 자동 실행", "로그인할 때 자동으로 실행합니다", isAutoStartEnabled())
+	mFolder := systray.AddMenuItem("Change shared folder...", "Choose a different folder to sync")
+	mPairingQr := systray.AddMenuItem("Show sync QR code", "Scan with the Android app to connect instantly")
+	mCopySecret := systray.AddMenuItem("Copy shared secret", "Copy the secret to paste into the Android app")
+	mRegenSecret := systray.AddMenuItem("Regenerate shared secret", "Invalidates the current secret and creates a new one")
+	mAutoStart := systray.AddMenuItemCheckbox("Start automatically with Windows", "Run automatically when you sign in", isAutoStartEnabled())
 	systray.AddSeparator()
-	mQuit := systray.AddMenuItem("종료", "동기화 서버를 끕니다")
+	mQuit := systray.AddMenuItem("Quit", "Stop the sync server")
 
-	// 시작할 때마다 시크릿을 보여준다 — 안드로이드 쪽 안내 문구("PC에서 moonkata-sync-server를
-	// 실행하면 공유 시크릿이 표시됩니다")와 맞추기 위해 메뉴를 뒤지지 않아도 항상 바로 보이게.
+	// Show the secret every time the app starts — this keeps it aligned with the Android side's
+	// guidance text ("Running moonkata-sync-server on your PC will show the shared secret"), so it's
+	// always right there without needing to dig through the menu.
 	go showStartupSecret(state)
 
 	go func() {
@@ -61,22 +63,25 @@ func onTrayReady(state *AppState) {
 	}()
 }
 
-// 실행될 때마다 상태를 알려준다 — 예전엔 showMessage(모달, OK를 눌러야 다음으로 넘어감)였는데, 그냥
-// 확인용 정보라 클릭을 강제할 이유가 없다는 실사용 피드백을 받고 showNotification(우측 하단 알림)으로
-// 바꿨다. 이후 나머지 알림들(폴더 변경, 시크릿 복사/재생성, QR 안내, 실패 메시지 등)도 전부 같은
-// 이유로 showNotification으로 통일했다 — "동작하다가 멈추는" 모달이 하나도 안 남게. 안내 문구도 QR
-// 페어링(스테이지 6)이 생긴 뒤로는 시크릿을 통째로 안 보여줘도 되므로 줄였다 — 시크릿은 여전히
-// 클립보드에 복사해두고, 자세한 값이 필요하면 "공유 시크릿 복사" 메뉴로 언제든 다시 가져갈 수 있다.
+// Report the status every time the app starts — this used to be showMessage (a modal that blocked
+// until you clicked OK), but that was just informational, and real-world feedback said there was no
+// reason to force a click, so it was switched to showNotification (a bottom-right toast). All the
+// other notifications (folder change, secret copy/regenerate, QR guidance, failure messages, etc.)
+// were unified onto showNotification for the same reason afterward — so there isn't a single modal
+// left that "freezes" the app while it's actually working fine. The wording was also trimmed once QR
+// pairing (stage 6) arrived, since there's no longer a need to show the full secret up front — it's
+// still copied to the clipboard, and the full value is always available again from the "Copy shared
+// secret" menu item if needed.
 func showStartupSecret(state *AppState) {
 	folderPath, secret := state.Get()
 	if folderPath == "" {
-		showNotification("moonkata-sync-server", "공유할 폴더가 아직 설정되지 않았습니다 — 트레이 메뉴에서 \"공유 폴더 변경...\"을 선택하세요.")
+		showNotification("moonkata-sync-server", "No shared folder is set yet — choose \"Change shared folder...\" from the tray menu.")
 		return
 	}
 	_ = copyToClipboard(secret)
 	showNotification(
-		"moonkata-sync-server 실행 중",
-		fmt.Sprintf("포트 %d에서 대기 중입니다. 트레이 메뉴의 \"동기화 QR 보기\"로 안드로이드와 연결하세요(시크릿은 클립보드에 복사됨).", port),
+		"moonkata-sync-server is running",
+		fmt.Sprintf("Listening on port %d. Use \"Show sync QR code\" from the tray menu to connect with Android (the secret has been copied to the clipboard).", port),
 	)
 }
 
@@ -88,54 +93,55 @@ func handleChangeFolder(state *AppState, mStatus *systray.MenuItem) {
 	}
 	state.SetFolderPath(selected)
 	if err := saveCurrentState(state); err != nil {
-		log.Printf("설정 저장 실패: %v", err)
+		log.Printf("Failed to save config: %v", err)
 	}
 	updateStatusLabel(mStatus, state)
 	updateTooltip(state)
-	showNotification("moonkata-sync-server", "공유 폴더를 변경했습니다:\n"+selected)
+	showNotification("moonkata-sync-server", "Shared folder changed to:\n"+selected)
 }
 
-// handleShowPairingQr는 기본 브라우저로 /pair 페이지를 연다 — 이 서버가 자체 서명 인증서를 쓰기
-// 때문에(TOFU, tls.go 참고) 브라우저가 처음엔 "안전하지 않은 연결" 경고를 보여준다. 이건 이 서버가
-// 쓰는 인증서 방식 자체의 성격이라 이 화면만 따로 없앨 방법은 없어서, 사용자에게 왜 그런지 미리
-// 알려주고 진행하게 한다(.docs/SYNC_MULTIUSER_PLAN.md 스테이지 6).
+// handleShowPairingQr opens the /pair page in the default browser — because this server uses a
+// self-signed certificate (TOFU, see tls.go), the browser will show an "unsafe connection" warning
+// the first time. That's inherent to the certificate approach this server uses, so this warning
+// screen can't be removed on its own; instead the user is told why beforehand and allowed to proceed
+// (.docs/SYNC_MULTIUSER_PLAN.md stage 6).
 func handleShowPairingQr() {
 	showNotification(
 		"moonkata-sync-server",
-		"브라우저가 열립니다. 이 서버는 자체 서명 인증서를 쓰기 때문에 \"안전하지 않은 연결\" 경고가 뜰 수 있습니다 — \"고급\" → \"계속 진행\"을 누르면 QR이 보입니다(처음 한 번만).",
+		"Opening your browser. This server uses a self-signed certificate, so you may see an \"unsafe connection\" warning — click \"Advanced\" then \"Proceed\" to see the QR code (only needed once).",
 	)
 	if err := openURL(fmt.Sprintf("https://127.0.0.1:%d/pair", port)); err != nil {
-		showNotification("moonkata-sync-server", "브라우저를 여는 데 실패했습니다.")
+		showNotification("moonkata-sync-server", "Failed to open the browser.")
 	}
 }
 
 func handleCopySecret(state *AppState) {
 	_, secret := state.Get()
 	if err := copyToClipboard(secret); err != nil {
-		showNotification("moonkata-sync-server", "클립보드 복사에 실패했습니다.")
+		showNotification("moonkata-sync-server", "Failed to copy to the clipboard.")
 		return
 	}
-	showNotification("moonkata-sync-server", "공유 시크릿을 클립보드에 복사했습니다.")
+	showNotification("moonkata-sync-server", "Copied the shared secret to the clipboard.")
 }
 
 func handleRegenerateSecret(state *AppState) {
 	newSecret, err := generateSecret()
 	if err != nil {
-		showNotification("moonkata-sync-server", "시크릿 생성에 실패했습니다.")
+		showNotification("moonkata-sync-server", "Failed to generate a secret.")
 		return
 	}
 	state.SetSecret(newSecret)
 	if err := saveCurrentState(state); err != nil {
-		log.Printf("설정 저장 실패: %v", err)
+		log.Printf("Failed to save config: %v", err)
 	}
 	_ = copyToClipboard(newSecret)
-	showNotification("moonkata-sync-server", "새 공유 시크릿을 만들어 클립보드에 복사했습니다 — 기존 시크릿을 쓰던 기기는 다시 붙여넣어야 합니다:\n\n"+newSecret)
+	showNotification("moonkata-sync-server", "Created a new shared secret and copied it to the clipboard — devices using the old secret will need to paste the new one:\n\n"+newSecret)
 }
 
 func handleToggleAutoStart(item *systray.MenuItem) {
 	enable := !isAutoStartEnabled()
 	if err := setAutoStartEnabled(enable); err != nil {
-		showNotification("moonkata-sync-server", "설정 변경에 실패했습니다.")
+		showNotification("moonkata-sync-server", "Failed to change the setting.")
 		return
 	}
 	if enable {
@@ -148,19 +154,19 @@ func handleToggleAutoStart(item *systray.MenuItem) {
 func updateStatusLabel(item *systray.MenuItem, state *AppState) {
 	folderPath, _ := state.Get()
 	if folderPath == "" {
-		item.SetTitle("공유 폴더 미설정")
+		item.SetTitle("No shared folder set")
 		return
 	}
-	item.SetTitle("공유 중: " + folderPath)
+	item.SetTitle("Sharing: " + folderPath)
 }
 
 func updateTooltip(state *AppState) {
 	folderPath, _ := state.Get()
 	if folderPath == "" {
-		systray.SetTooltip("moonkata-sync-server — 폴더 미설정")
+		systray.SetTooltip("moonkata-sync-server — no folder set")
 		return
 	}
-	systray.SetTooltip(fmt.Sprintf("moonkata-sync-server — 포트 %d\n%s", port, folderPath))
+	systray.SetTooltip(fmt.Sprintf("moonkata-sync-server — port %d\n%s", port, folderPath))
 }
 
 func saveCurrentState(state *AppState) error {

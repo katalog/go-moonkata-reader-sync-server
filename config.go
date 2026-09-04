@@ -8,10 +8,11 @@ import (
 	"path/filepath"
 )
 
-// Config는 트레이 앱(Phase P2)이 아직 없는 지금은 %APPDATA%\MoonkataSyncServer\config.json에
-// 직접 저장/로드된다. 공유 시크릿은 사용자가 직접 만들어 입력하는 게 아니라 이 프로그램이 처음 실행될
-// 때 자동 생성해서 보여주는 방식(.docs/PC_SYNC_SERVER_PLAN.md §1) — 일반 사용자가 안전한 문자열을
-// 직접 만들 필요가 없게 한다.
+// Config is saved to and loaded directly from %APPDATA%\MoonkataSyncServer\config.json for now,
+// since there's no tray app (Phase P2) yet. The shared secret isn't something the user makes up
+// and types in themselves — this program auto-generates and displays one the first time it runs
+// (.docs/PC_SYNC_SERVER_PLAN.md §1), so an ordinary user never has to come up with a secure
+// string on their own.
 type Config struct {
 	FolderPath string `json:"folderPath"`
 	Secret     string `json:"secret"`

@@ -6,14 +6,14 @@ import (
 	"syscall"
 )
 
-// showNotification은 화면 우측 하단에 뜨는 알림(토스트/풍선 도움말)을 띄운다 — 원래 있던
-// showMessage(Win32 MessageBoxW 기반 모달)는 확인을 누를 때까지 프로그램이 멈춰있는 것처럼 보이는
-// 문제가 있어서(실사용 피드백으로, 트레이 앱의 모든 알림을 이걸로 교체) 완전히 걷어냈다. .NET
-// WinForms의 NotifyIcon을 PowerShell로
-// 한 줄 실행하는 방식 — Windows 10+에서는 이게 자동으로 현대적인 우측 하단 토스트로 뜬다. 별도
-// 프로세스를 기다리지 않고 바로 리턴한다(cmd.Start, cmd.Run이 아님) — 알림이 몇 초 떠 있는 동안 이
-// 함수를 호출한 goroutine이 멈춰있을 이유가 없다. PowerShell 스크립트 자신이 잠깐 살아있다가
-// 스스로 정리한다.
+// showNotification pops up a bottom-right notification (toast/balloon tip) — the original
+// showMessage (a Win32 MessageBoxW-based modal) had the problem of looking like the program had
+// frozen until you clicked OK, so based on real-world feedback it was replaced everywhere across the
+// tray app and fully removed. This runs .NET WinForms' NotifyIcon as a one-line PowerShell script —
+// on Windows 10+ that automatically shows up as a modern bottom-right toast. It returns immediately
+// without waiting for the child process (cmd.Start, not cmd.Run) — there's no reason for the calling
+// goroutine to block while the notification stays up for a few seconds. The PowerShell script stays
+// alive briefly on its own and cleans itself up.
 func showNotification(title string, message string) {
 	script := `Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -31,13 +31,13 @@ $notify.Dispose()`
 	_ = cmd.Start()
 }
 
-// pickFolder는 Windows 기본 폴더 선택 대화상자를 띄운다 — 별도 다이얼로그 라이브러리(대부분 CGO 필요)
-// 없이, 모든 Windows에 이미 있는 .NET WinForms를 PowerShell로 한 줄 실행해서 재사용한다. 취소하면 빈
-// 문자열을 돌려준다.
+// pickFolder shows the standard Windows folder-picker dialog — instead of pulling in a separate
+// dialog library (most of which need CGO), it reuses .NET WinForms, which is already present on
+// every Windows install, via a one-line PowerShell script. Returns an empty string if cancelled.
 func pickFolder(initialPath string) string {
 	script := `Add-Type -AssemblyName System.Windows.Forms
 $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-$dlg.Description = "동기화할 폴더를 선택하세요"
+$dlg.Description = "Choose a folder to sync"
 if ("` + escapePowerShellString(initialPath) + `" -ne "") { $dlg.SelectedPath = "` + escapePowerShellString(initialPath) + `" }
 if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dlg.SelectedPath }`
 
@@ -54,8 +54,9 @@ func escapePowerShellString(s string) string {
 	return strings.ReplaceAll(s, `"`, `""`)
 }
 
-// copyToClipboard는 Windows 내장 clip.exe에 표준입력으로 흘려보내는 방식 — 별도 클립보드
-// 라이브러리(대부분 CGO 필요) 없이 모든 Windows에 있는 도구를 재사용한다.
+// copyToClipboard pipes the text into Windows' built-in clip.exe via stdin — instead of pulling in a
+// separate clipboard library (most of which need CGO), it reuses a tool already present on every
+// Windows install.
 func copyToClipboard(text string) error {
 	cmd := exec.Command("clip")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
@@ -63,10 +64,11 @@ func copyToClipboard(text string) error {
 	return cmd.Run()
 }
 
-// openURL은 기본 브라우저로 주소를 연다 — "동기화 QR 보기" 메뉴용(.docs/SYNC_MULTIUSER_PLAN.md
-// 스테이지 6). `cmd /c start`는 Windows에 항상 있는 내장 명령이라 별도 라이브러리가 필요 없다. 첫
-// 인자는 start가 창 제목으로 해석하므로 빈 문자열을 그 자리에 넣어야 URL이 두 번째 인자로 정확히
-// 전달된다.
+// openURL opens an address in the default browser — used by the "Show sync QR code" menu item
+// (.docs/SYNC_MULTIUSER_PLAN.md stage 6). `cmd /c start` is a built-in command always present on
+// Windows, so no separate library is needed. The first argument has to be an empty string because
+// start interprets that position as the window title — otherwise the URL wouldn't be passed
+// correctly as the second argument.
 func openURL(url string) error {
 	cmd := exec.Command("cmd", "/c", "start", "", url)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}

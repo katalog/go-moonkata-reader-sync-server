@@ -18,13 +18,15 @@ import (
 	"time"
 )
 
-// loadOrCreateTLSCertificate는 이 서버의 HTTPS 인증서를 준비한다 — 사설 IP(192.168.x.x 등)엔 공인
-// CA가 인증서를 발급해주지 않으므로 자체 서명(self-signed) 인증서를 쓴다. 안드로이드 쪽은 이 인증서를
-// CA 체인으로 검증하는 대신, 최초 "연결 테스트" 성공 시점의 지문(fingerprint)을 저장해두고 이후
-// 요청마다 그 지문과 정확히 같은지만 확인한다(SSH가 최초 접속 때 호스트 키를 저장해두는 것과 같은
-// TOFU 방식, .docs/PC_SYNC_SERVER_PLAN.md 참고) — 그래서 인증서의 CN/SAN이 실제 접속 주소와 맞을
-// 필요는 없고, 그냥 매번 같은 인증서를 계속 쓰기만 하면 된다. 한 번 만들면 %APPDATA%에 저장해두고
-// 재사용 — 재실행할 때마다 바뀌면 안드로이드 쪽에 저장해둔 지문이 계속 안 맞아서 재인증이 필요해진다.
+// loadOrCreateTLSCertificate prepares this server's HTTPS certificate — since a public CA won't
+// issue a certificate for a private IP (192.168.x.x, etc.), we use a self-signed certificate.
+// Instead of validating this certificate via a CA chain, the Android side stores the fingerprint
+// from the moment its first "connection test" succeeds, and on every request afterward just
+// checks it matches that fingerprint exactly (the same TOFU approach SSH uses when it stores a
+// host key on first connect — see .docs/PC_SYNC_SERVER_PLAN.md). So the certificate's CN/SAN
+// doesn't need to match the actual connection address — it just needs to stay the same certificate
+// every time. Once created, it's saved under %APPDATA% and reused — if it changed on every
+// restart, the fingerprint Android has stored would keep mismatching, requiring re-pairing.
 func loadOrCreateTLSCertificate() (tls.Certificate, error) {
 	dir, err := configDir()
 	if err != nil {
@@ -59,7 +61,7 @@ func generateSelfSignedCertificate(certPath string, keyPath string) (tls.Certifi
 		SerialNumber:          serialNumber,
 		Subject:               pkix.Name{CommonName: "moonkata-sync-server"},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(20, 0, 0), // 개인용 LAN 도구라 정기 갱신 없이 길게
+		NotAfter:              time.Now().AddDate(20, 0, 0), // a personal LAN tool, so a long validity with no periodic renewal
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -98,13 +100,14 @@ func generateSelfSignedCertificate(certPath string, keyPath string) (tls.Certifi
 	return tls.LoadX509KeyPair(certPath, keyPath)
 }
 
-// certificateFingerprint는 리프 인증서의 SHA-256 지문을 안드로이드 쪽 PcTlsTrust.sha256Fingerprint와
-// 정확히 같은 형식(콜론 구분 대문자 헥사 32쌍)으로 계산한다 — QR 페어링(.docs/SYNC_MULTIUSER_PLAN.md
-// 스테이지 6)이 이 값을 그대로 QR에 실어 보내고, 안드로이드는 문자열을 그대로 비교하므로 형식이 한
-// 글자라도 다르면 pinned TLS 연결이 실패한다.
+// certificateFingerprint computes the SHA-256 fingerprint of the leaf certificate in exactly the
+// same format as Android's PcTlsTrust.sha256Fingerprint (colon-separated uppercase hex pairs, 32
+// of them) — QR pairing (.docs/SYNC_MULTIUSER_PLAN.md stage 6) sends this value as-is in the QR,
+// and Android compares the string directly, so the pinned TLS connection fails if the format is
+// off by even one character.
 func certificateFingerprint(cert tls.Certificate) (string, error) {
 	if len(cert.Certificate) == 0 {
-		return "", errors.New("인증서가 비어있습니다")
+		return "", errors.New("certificate is empty")
 	}
 	sum := sha256.Sum256(cert.Certificate[0])
 	parts := make([]string, len(sum))

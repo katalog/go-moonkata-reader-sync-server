@@ -1,9 +1,9 @@
 name: Release
 
-# v로 시작하는 태그(v1.0.0 등)를 push하면 실행된다 — moonkata-reader-project(우산 저장소)에서
-# 같은 태그를 이 저장소로 내려보내는 방식으로도 트리거된다. Windows용 exe라도 CGO를 안 쓰는 순수
-# Go라 크로스 컴파일이 되므로 ubuntu-latest에서 GOOS=windows로 그냥 빌드한다 — 굳이 windows-latest
-# 러너를 쓸 필요 없음.
+# Runs when a tag starting with v (v1.0.0, etc.) is pushed — also triggered by
+# moonkata-reader-project (the umbrella repo) pushing that same tag down to this repo. Even though
+# the output is a Windows exe, it's plain Go with no CGO, so it cross-compiles fine — just build
+# with GOOS=windows on ubuntu-latest, no need for a windows-latest runner.
 on:
   push:
     tags:
@@ -28,8 +28,9 @@ jobs:
         id: version
         run: echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      # -H=windowsgui: 콘솔 창 없이 트레이 아이콘으로만 뜨게. CGO_ENABLED=0은 기본값이라 명시 안 해도
-      # 되지만, 순수 Go라는 전제를 워크플로우에서도 눈에 보이게 남겨둠.
+      # -H=windowsgui: runs as a tray icon only, no console window. CGO_ENABLED=0 is already the
+      # default so it doesn't need to be set explicitly, but it's kept here to make the plain-Go
+      # assumption visible in the workflow too.
       - name: Build Windows exe
         env:
           GOOS: windows
@@ -45,5 +46,5 @@ jobs:
         with:
           files: release-artifacts/*.exe
           generate_release_notes: true
-          # 태그 이름에 -beta가 있으면(예: v1.6.0-beta.1) GitHub이 "Pre-release" 배지를 붙인다.
+          # GitHub adds a "Pre-release" badge if the tag name contains -beta (e.g. v1.6.0-beta.1).
           prerelease: ${{ contains(github.ref_name, '-beta') }}
