@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +21,19 @@ func listFilesRecursively(root string) ([]RemoteFile, error) {
 	var result []RemoteFile
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return err
+			// root 자체를 못 읽으면(폴더가 통째로 없어짐/권한 없음) 진짜 실패다. 그 아래 항목 하나가
+			// 순회 도중 사라지거나(안드로이드가 목록을 요청한 바로 그 순간 PC에서 파일/폴더를 옮기거나
+			// 지우는 경합) 일시적으로 접근할 수 없는 경우는 전체 스캔을 실패시키지 않고 그 항목만
+			// 건너뛴다 — 실사용 중 파일 삭제 직후 동기화가 "PC에 연결할 수 없습니다"로 통째로 실패하던
+			// 문제(android-moonkata-reader .docs/IDEAS.md) 대응.
+			if path == root {
+				return err
+			}
+			log.Printf("list: skipping %s: %v", path, err)
+			if d != nil && d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		name := d.Name()
 		// 점(.)으로 시작하는 폴더/파일은 건너뛴다 — 실기기 테스트 중 Syncthing의 내부 마커 파일
